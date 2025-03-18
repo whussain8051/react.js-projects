@@ -28,7 +28,11 @@ const storage = multer.diskStorage({
         cb(null, Date.now() + path.extname(file.originalname)); // Unique filename
     }
 });
-const upload = multer({ storage: storage });
+const upload = multer({
+    storage: storage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max file size
+});
+
 
 // Connect to MongoDB
 mongoose.connect("mongodb+srv://waqar:12qw%21%40QW@cluster0.qnrye.mongodb.net/crud", {
@@ -54,38 +58,34 @@ app.get('/getUser/:id', (req, res) => {
 });
 
 // Create a new user with an image
-app.post("/createUser", upload.single("image"), (req, res) => {
+app.post("/createUser", upload.array("images", 10), (req, res) => {
     const { name, email, age } = req.body;
-    const image = req.file ? req.file.filename : null;
+    console.log(req.body);
 
-    UserModel.create({ name, email, age, image })
+    // Get filenames of uploaded images
+    const images = req.files.map(file => file.filename);
+
+    UserModel.create({ name, email, age, images }) // Store array of image filenames
         .then(user => res.json(user))
         .catch(err => res.json(err));
 });
 
 // Update user with or without a new image
-app.put('/updateUser/:id', upload.single("image"), (req, res) => {
+app.put('/updateUser/:id', upload.array("images", 10), (req, res) => {
     const { name, email, age } = req.body;
     const id = req.params.id;
-
+    const images = req.files.map(file => file.filename);
     UserModel.findById(id)
         .then(user => {
             if (!user) return res.status(404).json({ message: "User not found" });
 
-            if (req.file) {
-                // Delete old image if it exists
-                if (user.image) {
-                    fs.unlink(path.join(__dirname, 'uploads', user.image), (err) => {
-                        if (err) console.log("Failed to delete old image:", err);
-                    });
-                }
-                user.image = req.file.filename;
+            if (req.files.length > 0) {
+            
+                user.images = images    // Update images if new images are uploaded
             }
-
             user.name = name;
             user.email = email;
             user.age = age;
-
             return user.save();
         })
         .then(updatedUser => res.json(updatedUser))

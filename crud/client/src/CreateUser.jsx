@@ -161,7 +161,7 @@ function CreateUser() {
     const handleImageChange = (e) => {
         const files = Array.from(e.target.files);
         setImages(files);
-    };
+    };    
 
     const Submit = (e) => {
         e.preventDefault();
